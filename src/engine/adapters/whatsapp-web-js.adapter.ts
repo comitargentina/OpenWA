@@ -18,6 +18,7 @@ import {
   PollInput,
   ContactCard,
   MessageReaction,
+  PollVotes,
   Label,
   Channel,
   ChannelMessage,
@@ -728,6 +729,10 @@ export class WhatsAppWebJsAdapter extends EventEmitter implements IWhatsAppEngin
 
   votePoll(chatId: string, pollMessageId: string, options: string[]): Promise<void> {
     return this.messaging.votePoll(chatId, pollMessageId, options);
+  }
+
+  getPollVotes(chatId: string, pollMessageId: string): Promise<PollVotes> {
+    return this.messaging.getPollVotes(chatId, pollMessageId);
   }
 
   // whatsapp-web.js has no interactive button-reply send path; the parameters are not named so the

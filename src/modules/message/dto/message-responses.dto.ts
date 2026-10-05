@@ -344,6 +344,35 @@ export class MessageReactionSenderDto {
   timestamp!: number;
 }
 
+/** One voter's current selection on a poll. */
+export class PollVoteDto {
+  @ApiProperty({ description: "The voter's WhatsApp id (may be an @lid privacy id).", example: '163514303905805@lid' })
+  voter!: string;
+
+  @ApiProperty({
+    type: [String],
+    description: 'The option TEXTS this voter currently has selected; an empty array means they cleared their vote.',
+    example: ['Martes 6 a las 10:00'],
+  })
+  options!: string[];
+
+  @ApiProperty({ description: 'Timestamp whatsapp-web.js reports for the vote, unchanged.', example: 1791173400 })
+  interactedAtTs!: number;
+}
+
+/** OpenAPI mirror of the engine `PollVotes` served by the poll-votes route. */
+export class PollVotesDto {
+  @ApiProperty({
+    type: [String],
+    description: "The poll's option texts, in poll order.",
+    example: ['Martes 6 a las 10:00', 'Otro día'],
+  })
+  options!: string[];
+
+  @ApiProperty({ type: [PollVoteDto], description: "Everyone's current vote; empty while nobody has voted." })
+  votes!: PollVoteDto[];
+}
+
 /** OpenAPI mirror of the engine `MessageReaction` served by the reactions route. */
 export class MessageReactionDto {
   @ApiProperty({ description: 'The emoji this entry groups.', example: '👍' })

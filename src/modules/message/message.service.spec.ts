@@ -33,6 +33,7 @@ function createMockEngine() {
     pinMessage: jest.fn().mockResolvedValue(undefined),
     starMessage: jest.fn().mockResolvedValue(undefined),
     votePoll: jest.fn().mockResolvedValue(undefined),
+    getPollVotes: jest.fn().mockResolvedValue({ options: [], votes: [] }),
     unpinMessage: jest.fn().mockResolvedValue(undefined),
     editMessage: jest.fn().mockResolvedValue({ id: 'wa-msg-1', timestamp: 1706868000 }),
     getChatHistory: jest.fn().mockResolvedValue([]),
@@ -882,6 +883,15 @@ describe('MessageService', () => {
       (repository.update as jest.Mock).mockClear();
       await service.pinMessage('sess-1', { chatId: '621@c.us', messageId: 'M1' });
       expect(repository.update).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getPollVotes', () => {
+    it('reads the poll through the engine and returns it unchanged', async () => {
+      const poll = { options: ['A', 'B'], votes: [{ voter: '621@c.us', options: ['A'], interactedAtTs: 5 }] };
+      mockEngine.getPollVotes.mockResolvedValueOnce(poll);
+      await expect(service.getPollVotes('sess-1', '621@c.us', 'P1')).resolves.toEqual(poll);
+      expect(mockEngine.getPollVotes).toHaveBeenCalledWith('621@c.us', 'P1');
     });
   });
 

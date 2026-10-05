@@ -535,6 +535,12 @@ export class MessageService implements PluginMessagePort {
     return { success: true };
   }
 
+  /** A poll's options and each voter's current selection (whatsapp-web.js only; Baileys answers 501). */
+  async getPollVotes(sessionId: string, chatId: string, pollMessageId: string) {
+    const engine = this.getEngine(sessionId);
+    return engine.getPollVotes(chatId, pollMessageId);
+  }
+
   async deleteMessage(
     sessionId: string,
     dto: { chatId: string; messageId: string; forEveryone?: boolean },

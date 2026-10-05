@@ -403,6 +403,23 @@ export interface MessageReaction {
   senders: ReactionSender[];
 }
 
+/**
+ * One voter's CURRENT selection on a poll. `options` are option texts (the only handle WhatsApp gives, same as
+ * votePoll); an empty array means the voter cleared their vote. `interactedAtTs` is the timestamp whatsapp-web.js
+ * reports for the vote, passed through unchanged.
+ */
+export interface PollVote {
+  voter: string;
+  options: string[];
+  interactedAtTs: number;
+}
+
+/** A poll as the account can read it: its option texts and everyone's current vote. */
+export interface PollVotes {
+  options: string[];
+  votes: PollVote[];
+}
+
 // Phase 3: Labels (WhatsApp Business)
 export interface Label {
   id: string;
@@ -1057,6 +1074,13 @@ export interface MessageOperationsCapability {
    * duplicates, and the name is the only handle available.
    */
   votePoll(chatId: string, pollMessageId: string, options: string[]): Promise<void>;
+
+  /**
+   * Read a poll's options and each voter's current selection (whatsapp-web.js `Message.getPollVotes()`). The poll must be
+   * inside the same 100-message window the engine fetches for the chat; the target must be a poll creation message.
+   * A poll nobody has voted on yet answers `votes: []`. Not available on Baileys (501).
+   */
+  getPollVotes(chatId: string, pollMessageId: string): Promise<PollVotes>;
 
   /**
    * Reply to a WhatsApp Business button / list prompt as if the account tapped a choice.

@@ -572,6 +572,11 @@ export class BaileysAdapter implements IWhatsAppEngine {
   votePoll(_chatId: string, _pollMessageId: string, _options: string[]): Promise<void> {
     return this.unsupported('votePoll');
   }
+  // Reading votes needs the poll creation's messageSecret plus every vote update event kept in a store; Baileys
+  // only offers decryptPollVote for a single update, so there is no stored tally to read.
+  getPollVotes(_chatId: string, _pollMessageId: string): Promise<any> {
+    return this.unsupported('getPollVotes');
+  }
   getChatHistory(
     _chatId: string,
     _limit?: number,

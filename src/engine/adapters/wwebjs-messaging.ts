@@ -10,6 +10,7 @@ import {
   MessageReaction,
   MessageResult,
   PollInput,
+  PollVotes,
   Quotable,
 } from '../interfaces/whatsapp-engine.interface';
 import { MessageWithReactions, SerializedWid } from '../types/whatsapp-web-js.types';
@@ -930,6 +931,47 @@ export class WwebjsMessaging {
       throw error;
     }
     this.host.logger.log(`Voted on poll ${pollMessageId} in chat ${chatId} (${options.length} option(s))`);
+  }
+
+  async getPollVotes(chatId: string, pollMessageId: string): Promise<PollVotes> {
+    this.host.ensureReady();
+    try {
+      return await this.withPage('getPollVotes', async () => {
+        const message = await this.findInFetchWindow(chatId, pollMessageId);
+        const poll = message as unknown as {
+          pollOptions?: unknown;
+          getPollVotes(): Promise<
+            Array<{ voter: unknown; selectedOptions?: Array<{ name?: unknown }>; interractedAtTs?: unknown }>
+          >;
+        };
+        // A message that is not a poll creation has no pollOptions; whatsapp-web.js signals misuse by
+        // throwing a bare string, so do the same here and let the catch below map it to a 400.
+        if (!Array.isArray(poll.pollOptions) || typeof poll.getPollVotes !== 'function') {
+          throw new BadRequestException(
+            `Message ${pollMessageId} is not a poll: it can only be used with a pollCreation message`,
+          );
+        }
+        const optionText = (o: unknown): string => {
+          if (typeof o === 'string') return o;
+          const name = (o as { name?: unknown } | null)?.name;
+          return typeof name === 'string' ? name : '';
+        };
+        const votes = await poll.getPollVotes();
+        return {
+          options: poll.pollOptions.map(optionText),
+          votes: (votes ?? []).map(v => ({
+            voter: String(v.voter),
+            options: (v.selectedOptions ?? []).map(o => optionText(o)),
+            interactedAtTs: Number(v.interractedAtTs ?? 0),
+          })),
+        };
+      });
+    } catch (error) {
+      if (typeof error === 'string') {
+        throw new BadRequestException(`Message ${pollMessageId} is not a poll: ${error}`);
+      }
+      throw error;
+    }
   }
 
   async pinMessage(chatId: string, messageId: string, durationSeconds: number): Promise<void> {

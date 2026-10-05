@@ -4863,6 +4863,82 @@ describe('votePoll', () => {
   });
 });
 
+describe('getPollVotes', () => {
+  const ready = (client: unknown): WhatsAppWebJsAdapter => {
+    const adapter = new WhatsAppWebJsAdapter({ sessionId: 's', sessionDataPath: './data/sessions', puppeteer: {} });
+    (adapter as unknown as { status: EngineStatus }).status = EngineStatus.READY;
+    (adapter as unknown as { client: unknown }).client = client;
+    return adapter;
+  };
+  const chatWith = (messages: unknown[]) => ({
+    getChatById: jest.fn().mockResolvedValue({ fetchMessages: jest.fn().mockResolvedValue(messages) }),
+  });
+
+  it("returns the option texts and each voter's current selection by name", async () => {
+    const getPollVotes = jest.fn().mockResolvedValue([
+      { voter: '163@lid', selectedOptions: [{ id: 1, name: 'Martes' }], interractedAtTs: 1791173400 },
+      { voter: '999@c.us', selectedOptions: [], interractedAtTs: 1791173500 },
+    ]);
+    const adapter = ready(
+      chatWith([{ id: { _serialized: 'P1' }, pollOptions: ['Martes', 'Miércoles'], getPollVotes }]),
+    );
+    await expect(adapter.getPollVotes('628@c.us', 'P1')).resolves.toEqual({
+      options: ['Martes', 'Miércoles'],
+      votes: [
+        { voter: '163@lid', options: ['Martes'], interactedAtTs: 1791173400 },
+        { voter: '999@c.us', options: [], interactedAtTs: 1791173500 },
+      ],
+    });
+  });
+
+  it('answers an empty vote list for a poll nobody has voted on', async () => {
+    const adapter = ready(
+      chatWith([{ id: { _serialized: 'P1' }, pollOptions: ['A', 'B'], getPollVotes: jest.fn().mockResolvedValue([]) }]),
+    );
+    await expect(adapter.getPollVotes('628@c.us', 'P1')).resolves.toEqual({ options: ['A', 'B'], votes: [] });
+  });
+
+  it('accepts option objects as well as strings', async () => {
+    const adapter = ready(
+      chatWith([
+        {
+          id: { _serialized: 'P1' },
+          pollOptions: [{ name: 'A' }, { name: 'B' }],
+          getPollVotes: jest.fn().mockResolvedValue([]),
+        },
+      ]),
+    );
+    await expect(adapter.getPollVotes('628@c.us', 'P1')).resolves.toEqual({ options: ['A', 'B'], votes: [] });
+  });
+
+  it('maps a non-poll target to a 400, not an opaque 500', async () => {
+    const adapter = ready(chatWith([{ id: { _serialized: 'M1' } }]));
+    const err = await adapter.getPollVotes('628@c.us', 'M1').catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(BadRequestException);
+    expect((err as Error).message).toMatch(/is not a poll/);
+  });
+
+  it('propagates a genuine Error unchanged', async () => {
+    const adapter = ready(
+      chatWith([
+        {
+          id: { _serialized: 'P1' },
+          pollOptions: ['A'],
+          getPollVotes: jest.fn().mockRejectedValue(new Error('Evaluation failed')),
+        },
+      ]),
+    );
+    const err = await adapter.getPollVotes('628@c.us', 'P1').catch((e: unknown) => e);
+    expect(err).not.toBeInstanceOf(BadRequestException);
+    expect((err as Error).message).toBe('Evaluation failed');
+  });
+
+  it('404s for a poll outside the 100-message fetch window', async () => {
+    const adapter = ready(chatWith([]));
+    await expect(adapter.getPollVotes('628@c.us', 'OLD')).rejects.toBeInstanceOf(MessageNotFoundError);
+  });
+});
+
 describe('pinMessage / unpinMessage', () => {
   const ready = (client: unknown): WhatsAppWebJsAdapter => {
     const adapter = new WhatsAppWebJsAdapter({ sessionId: 's', sessionDataPath: './data/sessions', puppeteer: {} });

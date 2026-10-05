@@ -30,6 +30,7 @@ import {
   MessageListResponseDto,
   ChatHistoryMessageDto,
   MessageReactionDto,
+  PollVotesDto,
 } from './dto/message-responses.dto';
 import {
   SendLocationDto,
@@ -607,6 +608,31 @@ export class MessageController {
       deep === 'true' || deep === '1',
       abort.signal,
     );
+  }
+
+  @ChatScoped('fenced')
+  @Get(':chatId/:messageId/poll-votes')
+  @ApiOperation({ summary: "Read a poll: its options and each voter's current selection" })
+  @ApiParam({ name: 'sessionId', description: 'Session ID' })
+  @ApiParam({ name: 'chatId', description: 'Chat ID containing the poll' })
+  @ApiParam({ name: 'messageId', description: 'The poll creation message ID' })
+  @ApiResponse({ status: 200, description: 'The poll options and the current votes', type: PollVotesDto })
+  @ApiResponse({ status: 400, description: 'The target message is not a poll' })
+  @ApiResponse({ status: 404, description: 'Poll not found in the chat’s recent history' })
+  @ApiResponse({ status: 409, description: ENGINE_NOT_READY_409 })
+  @ApiResponse({ status: 501, description: ENGINE_NOT_SUPPORTED_501 })
+  @ApiResponse({
+    status: 503,
+    description:
+      'The whatsapp-web.js page connection died mid-read, so nothing could be read. Retry once the ' +
+      'session is ready again.',
+  })
+  async getPollVotes(
+    @Param('sessionId') sessionId: string,
+    @Param('chatId') chatId: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.messageService.getPollVotes(sessionId, chatId, messageId);
   }
 
   @ChatScoped('fenced')
