@@ -156,6 +156,20 @@ describe('Idempotency Utils', () => {
       expect(a).toBe('ack_A_X_read');
     });
 
+    it('salts message.poll_vote keys: a changed or re-made selection is its own delivery, a retry is stable', () => {
+      const data = { sessionId: 'A', pollMessageId: 'POLL1', voter: '628111@c.us', options: ['A'] };
+      const a = generateIdempotencyKey('message.poll_vote', data, '2026-06-20T00:00:00.000Z');
+      const b = generateIdempotencyKey('message.poll_vote', data, '2026-06-20T00:05:00.000Z');
+      expect(a).not.toBe(b);
+      expect(generateIdempotencyKey('message.poll_vote', data, '2026-06-20T00:00:00.000Z')).toBe(a);
+      const other = generateIdempotencyKey(
+        'message.poll_vote',
+        { ...data, voter: '628222@c.us' },
+        '2026-06-20T00:00:00.000Z',
+      );
+      expect(other).not.toBe(a);
+    });
+
     it('salts message.reaction keys so a re-reaction (same sender/emoji, later time) is a distinct event', () => {
       // A reaction has no unique id and is a read-modify-write: the same sender can go 👍 → remove → 👍.
       // Keying on (sender, message, emoji) alone would collapse the re-reaction onto the earlier one.

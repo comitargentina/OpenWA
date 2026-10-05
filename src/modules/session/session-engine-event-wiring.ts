@@ -18,6 +18,7 @@ import {
   EngineStatus,
   IWhatsAppEngine,
   IncomingCallEvent,
+  PollVoteEvent,
   AccountRestriction,
   PresenceUpdateEvent,
   CallOutcomeEvent,
@@ -291,6 +292,16 @@ export class SessionEngineEventWiring {
         void host.webhookService.dispatch(id, 'call.received', payload);
         // Opt-in auto-reject runs AFTER the dispatch so a reject failure can never eat the event.
         void host.leafEvents.maybeAutoRejectCall(id, engine, event.callId);
+      },
+      onPollVote: (event: PollVoteEvent): void => {
+        if (!host.isLiveEngine(id, engine)) return;
+        this.logger.log(`Poll vote on ${event.pollMessageId} from ${event.voter}`, {
+          sessionId: id,
+          pollMessageId: event.pollMessageId,
+          options: event.options.length,
+          action: 'poll_vote_received',
+        });
+        void host.webhookService.dispatch(id, 'message.poll_vote', { ...event });
       },
       onReconnecting: (attempt: number, nextDelayMs: number): void => {
         if (!host.isLiveEngine(id, engine)) return;

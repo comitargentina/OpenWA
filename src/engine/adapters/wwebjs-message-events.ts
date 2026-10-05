@@ -3,6 +3,7 @@ import {
   type IncomingMessage,
   type RevokedMessage,
   type ReactionEvent,
+  type PollVoteEvent,
   type EditedMessage,
 } from '../interfaces/whatsapp-engine.interface';
 import { type SerializedWid } from '../types/whatsapp-web-js.types';
@@ -196,6 +197,33 @@ export function registerWwebjsMessageEvents(client: Client, host: WwebjsEngineHo
       host.getCallbacks().onMessageReaction?.(event);
     } catch (error) {
       host.logger.error('Error processing message_reaction', String(error));
+    }
+  });
+
+  client.on('vote_update', vote => {
+    try {
+      const pollId = (vote.parentMessage as unknown as { id?: SerializedWid & { remote?: unknown } } | undefined)?.id;
+      const optionText = (o: unknown): string => {
+        const name = (o as { name?: unknown } | null)?.name;
+        return typeof name === 'string' ? name : '';
+      };
+      const event: PollVoteEvent = {
+        // Same `$1` fallback as reactions: some WA Web builds renamed `_serialized`.
+        pollMessageId: pollId?._serialized ?? pollId?.$1 ?? '',
+        chatId: typeof pollId?.remote === 'string' ? pollId.remote : '',
+        voter: String(vote.voter),
+        options: (vote.selectedOptions ?? []).map(optionText),
+        interactedAtTs: Number(vote.interractedAtTs ?? 0),
+      };
+      // Without the poll's id the consumer cannot tell which poll was voted on, so say nothing
+      // rather than dispatch an event that points at nothing.
+      if (!event.pollMessageId) {
+        host.logger.warn('Ignoring a poll vote without a poll message id');
+        return;
+      }
+      host.getCallbacks().onPollVote?.(event);
+    } catch (error) {
+      host.logger.error('Error processing vote_update', String(error));
     }
   });
 

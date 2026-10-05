@@ -661,6 +661,19 @@ export interface ReactionEvent {
 }
 
 /**
+ * Someone selected or deselected options on a poll (whatsapp-web.js `vote_update`). `options` is the voter's CURRENT
+ * selection by option text (empty = they cleared their vote); `pollMessageId` is the poll creation message, the id
+ * `send-poll` returned; `interactedAtTs` is the library's vote timestamp in MILLISECONDS.
+ */
+export interface PollVoteEvent {
+  pollMessageId: string;
+  chatId: string;
+  voter: string;
+  options: string[];
+  interactedAtTs: number;
+}
+
+/**
  * A group membership or metadata change, mapped at the adapter boundary to this neutral
  * shape so consumers never see engine-specific payloads:
  *  - whatsapp-web.js: `group_join` / `group_leave` / `group_update` /
@@ -814,6 +827,8 @@ export interface EngineEventCallbacks {
   onMessageAck?: (messageId: string, status: DeliveryStatus) => void;
   onMessageRevoked?: (message: RevokedMessage) => void;
   onMessageReaction?: (event: ReactionEvent) => void;
+  /** A vote on a poll (whatsapp-web.js only; Baileys never fires it). Dispatched as the `message.poll_vote` webhook. */
+  onPollVote?: (event: PollVoteEvent) => void;
   onMessageEdited?: (message: EditedMessage) => void;
   /**
    * Fired on group membership changes (join/leave), group metadata updates

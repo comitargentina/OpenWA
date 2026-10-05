@@ -3488,6 +3488,71 @@ describe('WhatsAppWebJsAdapter message_reaction (id resolution across WA Web bui
   });
 });
 
+describe('WhatsAppWebJsAdapter vote_update (poll votes reach the engine callbacks)', () => {
+  const wireVoteHandler = (): { onPollVote: jest.Mock; client: EventEmitter } => {
+    const adapter = new WhatsAppWebJsAdapter({
+      sessionId: 'sess-vote-test',
+      sessionDataPath: './data/sessions',
+      puppeteer: {},
+    });
+    const client = Object.assign(new EventEmitter(), {
+      info: { wid: { _serialized: 'me@c.us', user: '628123' }, pushname: 'Tester' },
+      getState: jest.fn().mockResolvedValue(WAState.CONNECTED),
+      pupPage: { evaluate: jest.fn().mockResolvedValue(true) },
+    });
+    (adapter as unknown as { client: unknown }).client = client;
+    const onPollVote = jest.fn();
+    (adapter as unknown as { callbacks: unknown }).callbacks = { onPollVote };
+    (adapter as unknown as { setupEventHandlers: () => void }).setupEventHandlers();
+    return { onPollVote, client };
+  };
+
+  it('maps the library vote to the neutral event: poll id, chat, voter, option texts, ms timestamp', () => {
+    const { onPollVote, client } = wireVoteHandler();
+    client.emit('vote_update', {
+      voter: '163514303905805@lid',
+      selectedOptions: [{ name: 'Miércoles 7 a las 16:00', localId: 1 }],
+      interractedAtTs: 1791173284280,
+      parentMessage: { id: { _serialized: 'true_163514303905805@lid_3EB0POLL', remote: '163514303905805@lid' } },
+    });
+    expect(onPollVote).toHaveBeenCalledWith({
+      pollMessageId: 'true_163514303905805@lid_3EB0POLL',
+      chatId: '163514303905805@lid',
+      voter: '163514303905805@lid',
+      options: ['Miércoles 7 a las 16:00'],
+      interactedAtTs: 1791173284280,
+    });
+  });
+
+  it('reports a cleared vote as an empty selection, not as a missing event', () => {
+    const { onPollVote, client } = wireVoteHandler();
+    client.emit('vote_update', {
+      voter: '999@c.us',
+      selectedOptions: [],
+      interractedAtTs: 5,
+      parentMessage: { id: { _serialized: 'P1', remote: '999@c.us' } },
+    });
+    expect((onPollVote.mock.calls as Array<[{ options: string[] }]>)[0][0].options).toEqual([]);
+  });
+
+  it('falls back to $1 when a WA Web build renamed _serialized, like reactions', () => {
+    const { onPollVote, client } = wireVoteHandler();
+    client.emit('vote_update', {
+      voter: 'v',
+      selectedOptions: [{ name: 'A' }],
+      interractedAtTs: 1,
+      parentMessage: { id: { $1: 'P_RENAMED', remote: 'c@c.us' } },
+    });
+    expect((onPollVote.mock.calls as Array<[{ pollMessageId: string }]>)[0][0].pollMessageId).toBe('P_RENAMED');
+  });
+
+  it('says nothing when the poll id cannot be resolved, rather than dispatch an event pointing at nothing', () => {
+    const { onPollVote, client } = wireVoteHandler();
+    client.emit('vote_update', { voter: 'v', selectedOptions: [], interractedAtTs: 1, parentMessage: { id: {} } });
+    expect(onPollVote).not.toHaveBeenCalled();
+  });
+});
+
 describe('WhatsAppWebJsAdapter message_revoke_everyone (forwards the original deleted id as revokedId)', () => {
   const wireRevokeHandler = (): { onMessageRevoked: jest.Mock; client: EventEmitter } => {
     const adapter = new WhatsAppWebJsAdapter({

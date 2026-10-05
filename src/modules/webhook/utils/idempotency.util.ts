@@ -70,6 +70,12 @@ export function generateIdempotencyKey(event: string, data: Record<string, unkno
       // distinct keys while retries of the same delivery stay stable.
       return `react_${toStr(data.sessionId)}_${toStr(data.messageId)}_${toStr(data.senderId)}${occurrence}`;
 
+    case 'message.poll_vote':
+      // A voter can change or clear their selection over time, and the same selection can recur
+      // (A -> B -> A): salt per occurrence so each genuine change is its own delivery while retries of
+      // the same delivery (same occurredAt) stay stable.
+      return `pollvote_${toStr(data.sessionId)}_${toStr(data.pollMessageId)}_${toStr(data.voter)}${occurrence}`;
+
     case 'session.status':
       // Salted so repeated transitions to the same status (e.g. across disconnect/reconnect cycles)
       // stay distinct instead of collapsing onto one key.
